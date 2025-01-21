@@ -1,3 +1,4 @@
+import 'package:cinemapedia/domain/repositories/local_storage_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:animate_do/animate_do.dart';
@@ -182,20 +183,42 @@ class _ActorsByMovie extends ConsumerWidget {
   }
 }
 
-class _CustomSliverAppBar extends StatelessWidget {
+final isFavoriteProvider =
+    FutureProvider.family.autoDispose((ref, int movieId) {
+  final localStorageRepository = ref.watch(localStorageRepositoryProvider);
+  return localStorageRepository.isMovieFavorite(movieId);
+});
+
+class _CustomSliverAppBar extends ConsumerWidget {
   final Movie movie;
   const _CustomSliverAppBar({
     required this.movie,
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isFavoriteFuture = ref.watch(isFavoriteProvider(movie.id));
     final Size size = MediaQuery.of(context).size;
 
     return SliverAppBar(
       backgroundColor: Colors.black,
       expandedHeight: size.height * 0.7,
       foregroundColor: Colors.white,
+      actions: [
+        IconButton(
+          onPressed: () {
+            ref.watch(localStorageRepositoryProvider).toggleFavorite(movie);
+            ref.invalidate(isFavoriteProvider(movie.id));
+          },
+          icon: isFavoriteFuture.when(
+            loading: () => CircularProgressIndicator(strokeWidth: 2),
+            data: (isFavorite) => isFavorite
+                ? Icon(Icons.favorite_rounded, color: Colors.redAccent)
+                : Icon(Icons.favorite_border),
+            error: (_, __) => throw UnimplementedError(),
+          ),
+        ),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         background: Stack(
           children: [
@@ -209,44 +232,64 @@ class _CustomSliverAppBar extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox.expand(
-              child: DecoratedBox(
-                  decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.transparent,
-                    Colors.black87,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: [0.7, 1.0],
-                ),
-              )),
+            _CustomGradient(
+              colors: [
+                Colors.transparent,
+                Colors.black87,
+              ],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: [0.7, 1.0],
             ),
-            const SizedBox.expand(
-              child: DecoratedBox(
-                  decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Colors.black87,
-                    Colors.transparent,
-                  ],
-                  begin: Alignment.topLeft,
-                  stops: [0.0, 0.3],
-                ),
-              )),
+            _CustomGradient(
+              colors: [
+                Colors.black87,
+                Colors.transparent,
+              ],
+              begin: Alignment.topLeft,
+              stops: [0.0, 0.3],
             ),
+            _CustomGradient(
+              colors: [
+                Colors.black54,
+                Colors.transparent,
+              ],
+              begin: Alignment.topRight,
+              end: Alignment.bottomLeft,
+              stops: [0.0, 0.3],
+            )
           ],
         ),
-        /* titlePadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        title: Text(
-          movie.title,
-          textAlign: TextAlign.start,
-          style: const TextStyle(
-            fontSize: 20,
-            color: Colors.white,
+      ),
+    );
+  }
+}
+
+class _CustomGradient extends StatelessWidget {
+  final List<double>? stops;
+  final AlignmentGeometry begin;
+  final AlignmentGeometry end;
+  final List<Color> colors;
+
+  const _CustomGradient({
+    this.stops,
+    this.begin = Alignment.centerRight,
+    this.end = Alignment.centerRight,
+    this.colors = const <Color>[],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: colors,
+            begin: begin,
+            end: end,
+            stops: stops,
           ),
-        ), */
+        ),
       ),
     );
   }
